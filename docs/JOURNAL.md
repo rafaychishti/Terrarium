@@ -26,3 +26,21 @@ date, what was decided, and why.
 - **2026-10-15 — No GitHub CLI.** Faisal could not set up `gh`, so the
   team uses plain git: tasks merge into `main` locally with a squash merge
   and are pushed; Faisal creates the repo on github.com in the browser.
+- **2026-10-15 — Simulation tick is 60 jar-seconds.** M0's 1/60-second tick
+  required 5.2 million ticks per jar-day and would make M1's 30-day physical
+  preview impractical. Processes needing finer resolution substep
+  deterministically within the coarser tick; M1-8 now requires its Medium
+  preview to finish within two minutes.
+- **2026-10-15 — Default clock speed is 60 ticks per real second.** The
+  worker accumulates wall time independently of fixed simulation ticks,
+  without dropping ticks, and the renderer interpolates between tick states.
+  Lamp-clock settings also include real time (1 tick per 60 seconds), one
+  jar-hour per real minute (1 tick per second), and unbounded speed. If the
+  worker cannot sustain a selected rate, jar time slows and the achieved
+  rate is reported. Revisit the default in M4 when creatures need smoother
+  motion at a finer timescale.
+- **2026-10-15 — A published worker state stays stable until the main thread
+  acknowledges its copy.** Without this handshake, delayed message handling
+  could read a later shared-buffer state for an earlier tick notification.
+  The scheduler retains due-tick debt while waiting, preserving both state
+  order and the no-skipped-ticks guarantee.

@@ -59,19 +59,20 @@ export function generateJar(
     light: new Float32Array(layout.cells),
   };
   const random = createRandom(seed).fork("jar-layers");
-  const soilDepth = layerDepth(random, layout.height, 0.05, 0.12);
-  const sandDepth = layerDepth(random, layout.height, 0.03, 0.08);
-  const gravelDepth = layerDepth(random, layout.height, 0.02, 0.06);
+  const soilDepth = layerDepth(random, layout.height - 1, 0.05, 0.12);
+  const sandDepth = layerDepth(random, layout.height - 1, 0.03, 0.08);
+  const gravelDepth = layerDepth(random, layout.height - 1, 0.02, 0.06);
 
-  let top = layout.height;
-  top = writeLayer(state.materials, layout.width, top, soilDepth, Material.soil);
+  let top = layout.height - 1;
+  top = writeLayer(state.materials, layout.width, top, gravelDepth, Material.gravel);
   top = writeLayer(state.materials, layout.width, top, sandDepth, Material.sand);
-  writeLayer(state.materials, layout.width, top, gravelDepth, Material.gravel);
+  writeLayer(state.materials, layout.width, top, soilDepth, Material.soil);
 
   for (let y = 0; y < layout.height; y += 1) {
     state.materials[y * layout.width] = Material.glass;
     state.materials[y * layout.width + layout.width - 1] = Material.glass;
   }
+  state.materials.fill(Material.glass, (layout.height - 1) * layout.width);
 
   return state;
 }

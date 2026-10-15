@@ -28,7 +28,8 @@ export interface PaperOptions {
   readonly physicalWidthMm?: number;
 }
 
-const PAPER = "#eee7d8";
+export const PAPER_BACKGROUND_COLOR = "#eee7d8";
+export const PAPER_COLOR = PAPER_BACKGROUND_COLOR;
 const INK = "#354139";
 
 // Material IDs follow the M0 world table: air, glass, gravel, sand, soil,
@@ -53,7 +54,7 @@ function hash(x: number, y: number): number {
 }
 
 function paperGround(context: PaperCanvasContext, width: number, height: number): void {
-  context.fillStyle = PAPER;
+  context.fillStyle = PAPER_BACKGROUND_COLOR;
   context.fillRect(0, 0, width, height);
   context.globalAlpha = 0.12;
   for (let y = 9; y < height; y += 13) {
