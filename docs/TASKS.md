@@ -24,8 +24,8 @@ headless, with CI guarding it.
 | --- | --- | --- | --- |
 | M0-1 | Lead | — | done — scaffold and shared contracts pushed; CI green on Windows and Ubuntu |
 | M0-2 | Simulation | M0-1 | done — QA passed; deterministic replay, scheduled actions, and seeded layers verified |
-| M0-3 | Rendering | M0-1 | doing |
-| M0-4 | QA & tools | M0-2, M0-3 | todo |
+| M0-3 | Rendering | M0-1 | done — QA passed; Paper renderer tested in Node and browser preview |
+| M0-4 | QA & tools | M0-2, M0-3 | doing |
 | M0-5 | QA & tools | M0-4 | todo |
 
 ### M0-1 · Scaffold and shared contracts — Lead
