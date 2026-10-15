@@ -131,11 +131,11 @@ forming on the glass and running down, plus the ledger report.
 | M1-0 | Lead | M0-5 | done — acceptance checks passed, including independent QA |
 | M1-1 | Lead | M1-0 | done — QA passed; shared field, material, and ledger contracts compile |
 | M1-2 | Simulation | M1-1 | done — acceptance passed and QA approved |
-| M1-3 | Simulation | M1-2 | todo |
+| M1-3 | Simulation | M1-2 | done — deterministic lamp, light, heat, cooling; acceptance and performance checks passed |
 | M1-4 | Simulation | M1-3 | todo |
 | M1-5 | Simulation | M1-4 | todo |
-| M1-6 | Rendering | M1-2 | todo |
-| M1-7 | QA & tools | M1-1 | todo |
+| M1-6 | Rendering | M1-2 | doing |
+| M1-7 | QA & tools | M1-1 | review |
 | M1-8 | QA & tools | M1-5, M1-6, M1-7 | todo |
 
 ### M1-0 · Correct the M0 foundation — Lead
@@ -193,7 +193,9 @@ after a day; the glass is the coolest surface (test on a report value).
 ### M1-4 · Soil water — Simulation
 
 Simplified Darcy flow in soil: wet to dry, rate by material, pulled down by
-gravity; free water soaks in.
+gravity; free water soaks in. Wire the backend ledger so water-changing
+modules report totals each tick for the M1-7 conservation check. The headless
+preview starts with the lamp on by default; `--lamp-intensity 0` disables it.
 
 **Acceptance:** a mist action wets the surface and the wet front moves
 down over hours; water total unchanged except the logged mist (ledger test).
@@ -202,7 +204,8 @@ down over hours; water total unchanged except the logged mist (ledger test).
 
 Evaporation from warm wet surfaces, vapour diffusion in air, condensation on
 the glass into droplet particles; droplets grow, merge and run down the glass
-into the soil.
+into the soil. Keep water totals available through the incremental ledger on
+every tick.
 
 **Acceptance:** in 30 jar-days with the lamp on, droplets form by day 2 and
 some reach the soil; the ledger balances to 1e-6 relative every tick; the

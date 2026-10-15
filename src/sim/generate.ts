@@ -1,6 +1,7 @@
 import { createStateLayout, type StateLayout, type StateView } from "../shared/layout";
 import { Material } from "../shared/materials";
 import { createRandom, type SeededRandom, type Seed } from "../shared/prng";
+import { ROOM_TEMPERATURE_C } from "./heat-transfer";
 
 export { Material } from "../shared/materials";
 
@@ -53,6 +54,7 @@ export function generateJar(
     microbes: new Float32Array(layout.cells),
     light: new Float32Array(layout.cells),
   };
+  state.temperature.fill(ROOM_TEMPERATURE_C);
   const random = createRandom(seed).fork("jar-layers");
   const soilDepth = layerDepth(random, layout.height - 1, 0.05, 0.12);
   const sandDepth = layerDepth(random, layout.height - 1, 0.03, 0.08);
