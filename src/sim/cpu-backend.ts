@@ -2,6 +2,7 @@ import { createStateLayout, type StateLayout, type StateView } from "../shared/l
 import type { Action, SimEvent, SimBackend } from "../shared/types";
 import { ActionQueue } from "./action-queue";
 import { EventRingBuffer } from "./event-ring-buffer";
+import { GranularMotion } from "./granular-motion";
 import {
   DEFAULT_GRID_HEIGHT,
   DEFAULT_GRID_WIDTH,
@@ -63,13 +64,17 @@ export class CpuBackend implements SimBackend {
   readonly events: EventRingBuffer;
   private readonly state: StateView;
   private readonly actions = new ActionQueue();
+  private readonly granularMotion: GranularMotion;
   private currentTick = 0;
+  private tiltDegrees = 0;
+  private granularSettled = false;
 
   constructor(seed: number | string, options: CpuBackendOptions = {}) {
     this.layout =
       options.layout ??
       createStateLayout(DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT);
     this.state = generateJar(seed, this.layout);
+    this.granularMotion = new GranularMotion(this.layout);
     this.events = new EventRingBuffer(options.eventCapacity);
   }
 
@@ -89,9 +94,21 @@ export class CpuBackend implements SimBackend {
     while (this.currentTick < targetTick) {
       this.currentTick += 1;
       const actions = this.actions.take(this.currentTick);
-      if (!actions) continue;
-      for (let index = 0; index < actions.length; index += 1) {
-        this.events.append(eventForAction(actions[index]));
+      if (actions) {
+        for (let index = 0; index < actions.length; index += 1) {
+          const action = actions[index];
+          if (action.type === "tilt") {
+            this.tiltDegrees = action.degrees;
+            this.granularSettled = false;
+          }
+          this.events.append(eventForAction(action));
+        }
+      }
+      if (
+        !this.granularSettled &&
+        !this.granularMotion.step(this.state, this.currentTick, this.tiltDegrees)
+      ) {
+        this.granularSettled = true;
       }
     }
   }
