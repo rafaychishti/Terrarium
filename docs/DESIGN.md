@@ -165,15 +165,33 @@ case 256 mm wide. Each cell carries:
 The case's side walls and floor are glass. The seeded M0 strata run from
 bottom to top as drainage gravel, sand, then plant-supporting soil.
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| material | u8 | air, glass, gravel, sand, soil, clay, rock, water, detritus |
-| water | f32 | ml of water held (soil water, puddle, or vapour in air) |
-| temperature | f32 | °C |
-| CO₂, O₂ | f32 | grams, in air and dissolved |
-| nutrients | f32 | grams of mineral nutrient (a single pool in v1) |
-| microbes | f32 | decomposer biomass as a field, not agents |
-| light | f32 | computed each tick, not stored across ticks |
+| Field | State property | Type | Notes |
+| --- | --- | --- | --- |
+| material | `materials` | u8 | air, glass, gravel, sand, soil, clay, rock, water, detritus |
+| water | `water` | f32 | ml of water held (soil water, puddle, or vapour in air) |
+| temperature | `temperature` | f32 | °C |
+| CO₂ | `co2` | f32 | grams, in air and dissolved |
+| O₂ | `oxygen` | f32 | grams, in air and dissolved |
+| nutrients | `nutrients` | f32 | grams of mineral nutrient (a single pool in v1) |
+| microbes | `microbes` | f32 | decomposer biomass as a field, not agents |
+| light | `light` | f32 | computed each tick, not stored across ticks |
+
+`src/shared/materials.ts` is the canonical material ID and property table.
+Density is in g/cm³, porosity and albedo are fractions, and thermal
+conductivity is in W/(m·K). The v1 values are representative starting
+constants; a material's porosity is its pore-space fraction.
+
+| Material | Density | Porosity | Conductivity | Albedo |
+| --- | ---: | ---: | ---: | ---: |
+| air | 0.0012 | 1.00 | 0.025 | 0.00 |
+| glass | 2.5 | 0.00 | 1.0 | 0.08 |
+| gravel | 1.7 | 0.40 | 0.4 | 0.18 |
+| sand | 1.6 | 0.38 | 0.3 | 0.30 |
+| soil | 1.2 | 0.50 | 0.25 | 0.15 |
+| clay | 1.1 | 0.55 | 0.9 | 0.20 |
+| rock | 2.7 | 0.02 | 2.5 | 0.25 |
+| water | 1.0 | 0.00 | 0.6 | 0.06 |
+| detritus | 0.2 | 0.80 | 0.1 | 0.20 |
 
 ### 5.2 Physical processes (each its own module)
 
