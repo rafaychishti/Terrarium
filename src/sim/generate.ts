@@ -1,16 +1,11 @@
 import { createStateLayout, type StateLayout, type StateView } from "../shared/layout";
+import { Material } from "../shared/materials";
 import { createRandom, type SeededRandom, type Seed } from "../shared/prng";
+
+export { Material } from "../shared/materials";
 
 export const DEFAULT_GRID_WIDTH = 256;
 export const DEFAULT_GRID_HEIGHT = 384;
-
-export const Material = {
-  air: 0,
-  glass: 1,
-  gravel: 2,
-  sand: 3,
-  soil: 4,
-} as const;
 
 function layerDepth(
   random: SeededRandom,

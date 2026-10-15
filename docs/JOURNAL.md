@@ -44,3 +44,9 @@ date, what was decided, and why.
   could read a later shared-buffer state for an earlier tick notification.
   The scheduler retains due-tick debt while waiting, preserving both state
   order and the no-skipped-ticks guarantee.
+- **2026-10-15 — Material properties use explicit real-unit scales.** The
+  shared material table stores density in g/cm³, thermal conductivity in
+  W/(m·K), and porosity/albedo as fractions. Representative initial values
+  give the M1 physics modules one consistent source; the ledger contract
+  begins with water totals, with carbon and nutrient totals reserved for
+  later milestones.
