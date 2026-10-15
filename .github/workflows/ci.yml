@@ -21,3 +21,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run jar -- --seed 7 --days 10 --out out/ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contact-sheet-${{ matrix.os }}
+          path: out/ci/contact-sheet.png
+          if-no-files-found: error
