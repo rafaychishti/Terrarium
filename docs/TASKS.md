@@ -130,7 +130,7 @@ forming on the glass and running down, plus the ledger report.
 | --- | --- | --- | --- |
 | M1-0 | Lead | M0-5 | done — acceptance checks passed, including independent QA |
 | M1-1 | Lead | M1-0 | done — QA passed; shared field, material, and ledger contracts compile |
-| M1-2 | Simulation | M1-1 | todo |
+| M1-2 | Simulation | M1-1 | done — acceptance passed and QA approved |
 | M1-3 | Simulation | M1-2 | todo |
 | M1-4 | Simulation | M1-3 | todo |
 | M1-5 | Simulation | M1-4 | todo |
