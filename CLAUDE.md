@@ -43,8 +43,13 @@ The agent definitions live in `.claude/agents/`, with a copy in
 ## Git
 
 - Repo: public on GitHub. One branch per task, `m<milestone>/<id>-<slug>`
-  (e.g. `m0/2-sim-worker`), merged into `main` by pull request with
-  `gh pr create` and `gh pr merge --squash` after QA passes.
+  (e.g. `m0/2-sim-worker`). After QA passes, merge it into `main` locally
+  with `git merge --squash <branch>` and one commit, then `git push`.
+  Push the task branch too, so the history is visible on GitHub.
+- Use plain `git` only. Do not use or install the GitHub CLI (`gh`); Faisal
+  does anything on github.com that git cannot do (creating the repo,
+  settings) in his browser. Git signs in through Git Credential Manager,
+  which opens the browser on the first push.
 - Commit messages say what changed and how it was checked.
 - Never force-push `main`. Never commit `out/`, `node_modules/` or secrets.
 

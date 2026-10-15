@@ -23,3 +23,6 @@ date, what was decided, and why.
 - **2026-10-15 — Team models.** Simulation and GPU use the lead's model
   (hardest reasoning); Rendering and QA use Sonnet to keep costs down.
   Change in `.claude/agents/*.md` if quality suffers.
+- **2026-10-15 — No GitHub CLI.** Faisal could not set up `gh`, so the
+  team uses plain git: tasks merge into `main` locally with a squash merge
+  and are pushed; Faisal creates the repo on github.com in the browser.

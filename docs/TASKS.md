@@ -22,7 +22,7 @@ headless, with CI guarding it.
 
 | ID | Owner | Needs | Status |
 | --- | --- | --- | --- |
-| M0-1 | Lead | — | blocked — GitHub CLI is installed, but GitHub authentication is still required |
+| M0-1 | Lead | — | doing — scaffold committed locally; waiting for the GitHub remote |
 | M0-2 | Simulation | M0-1 | todo |
 | M0-3 | Rendering | M0-1 | todo |
 | M0-4 | QA & tools | M0-2, M0-3 | todo |
@@ -30,8 +30,10 @@ headless, with CI guarding it.
 
 ### M0-1 · Scaffold and shared contracts — Lead
 
-- Create the public GitHub repo `terrarium` (`gh repo create --public`),
-  push the docs as the first commit.
+- Faisal creates the empty public repo `terrarium` on github.com (no
+  README, licence or .gitignore). The lead adds it as `origin` and runs
+  `git push -u origin main`; Git Credential Manager opens the browser to
+  sign in on the first push. No GitHub CLI.
 - `package.json` with the scripts named in DESIGN §7 (`dev`, `build`, `test`,
   `jar`, `survive`, `parity`, `shots`, `bench`; unbuilt ones print
   "not yet" and exit 0). Scripts must run in both PowerShell and bash: use
