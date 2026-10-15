@@ -3,6 +3,8 @@ import type { Action, SimEvent, SimBackend } from "../shared/types";
 import { ActionQueue } from "./action-queue";
 import { EventRingBuffer } from "./event-ring-buffer";
 import { GranularMotion } from "./granular-motion";
+import { HeatTransfer } from "./heat-transfer";
+import { LightTransport, type AreaLamp } from "./light-transport";
 import {
   DEFAULT_GRID_HEIGHT,
   DEFAULT_GRID_WIDTH,
@@ -65,9 +67,14 @@ export class CpuBackend implements SimBackend {
   private readonly state: StateView;
   private readonly actions = new ActionQueue();
   private readonly granularMotion: GranularMotion;
+  private readonly lightTransport = new LightTransport();
+  private readonly heatTransfer: HeatTransfer;
   private currentTick = 0;
   private tiltDegrees = 0;
   private granularSettled = false;
+  private lamp: AreaLamp = { xMm: 0, yMm: 0, intensity: 0 };
+  private thermalActive = false;
+  private lightDirty = true;
 
   constructor(seed: number | string, options: CpuBackendOptions = {}) {
     this.layout =
@@ -75,6 +82,7 @@ export class CpuBackend implements SimBackend {
       createStateLayout(DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT);
     this.state = generateJar(seed, this.layout);
     this.granularMotion = new GranularMotion(this.layout);
+    this.heatTransfer = new HeatTransfer(this.layout);
     this.events = new EventRingBuffer(options.eventCapacity);
   }
 
@@ -100,15 +108,35 @@ export class CpuBackend implements SimBackend {
           if (action.type === "tilt") {
             this.tiltDegrees = action.degrees;
             this.granularSettled = false;
+          } else if (action.type === "lamp") {
+            this.lamp = {
+              xMm: action.xMm,
+              yMm: action.yMm,
+              intensity: action.intensity,
+            };
+            this.thermalActive ||= action.intensity > 0;
+            this.lightDirty = true;
           }
           this.events.append(eventForAction(action));
         }
       }
-      if (
+      const materialsChanged =
         !this.granularSettled &&
-        !this.granularMotion.step(this.state, this.currentTick, this.tiltDegrees)
-      ) {
+        this.granularMotion.step(this.state, this.currentTick, this.tiltDegrees);
+      if (!this.granularSettled && !materialsChanged) {
         this.granularSettled = true;
+      }
+      if (this.thermalActive) {
+        if (materialsChanged) this.lightDirty = true;
+        if (this.lightDirty) {
+          this.lightTransport.step(this.state, this.layout, this.lamp);
+          this.lightDirty = false;
+        }
+        this.thermalActive = !this.heatTransfer.step(
+          this.state,
+          this.layout,
+          materialsChanged,
+        );
       }
     }
   }

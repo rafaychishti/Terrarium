@@ -20,9 +20,13 @@ function validateAction(action: Action): void {
       if (
         !Number.isFinite(action.xMm) ||
         !Number.isFinite(action.yMm) ||
-        !Number.isFinite(action.intensity)
+        !Number.isFinite(action.intensity) ||
+        action.intensity < 0 ||
+        action.intensity > 1
       ) {
-        throw new RangeError("Lamp coordinates and intensity must be finite");
+        throw new RangeError(
+          "Lamp coordinates must be finite and intensity must be in [0, 1]",
+        );
       }
       return;
     case "seed":
