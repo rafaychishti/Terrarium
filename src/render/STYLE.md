@@ -22,7 +22,8 @@ controls, or interface chrome sit over it.
 
 Materials are translucent washes over the paper ground; glass is lighter and
 never obscures its contents. Unknown material IDs use a muted earth-grey
-rather than an error colour.
+rather than an error colour. The ground colour is exported as
+`PAPER_BACKGROUND_COLOR` from `paper.ts` so tools can match the palette.
 
 ## Line weights and composition
 

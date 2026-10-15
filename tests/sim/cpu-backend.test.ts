@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CpuBackend } from "../../src/sim/cpu-backend";
-import { generateJar } from "../../src/sim/generate";
+import { generateJar, Material } from "../../src/sim/generate";
 import { createStateLayout } from "../../src/shared/layout";
 import { ml } from "../../src/shared/units";
 
@@ -70,7 +70,7 @@ describe("CPU reference backend", () => {
     );
   });
 
-  it("generates deterministic gravel, sand, and soil strata that vary by seed", () => {
+  it("generates gravel below sand and soil above it with a glass floor and sides", () => {
     const layout = createStateLayout(256, 384);
     const first = generateJar(1, layout);
     const replay = generateJar(1, layout);
@@ -78,9 +78,33 @@ describe("CPU reference backend", () => {
 
     expect(first.materials).toEqual(replay.materials);
     expect(first.materials).not.toEqual(otherSeed.materials);
-    expect(first.materials).toContain(2);
-    expect(first.materials).toContain(3);
-    expect(first.materials).toContain(4);
-    expect(first.materials).toContain(1);
+
+    const centerX = Math.floor(layout.width / 2);
+    const strata = new Set<number>();
+    for (let y = 0; y < layout.height - 1; y += 1) {
+      const material = first.materials[y * layout.width + centerX];
+      if (
+        material === Material.gravel ||
+        material === Material.sand ||
+        material === Material.soil
+      ) {
+        strata.add(material);
+      }
+    }
+    expect([...strata]).toEqual([Material.soil, Material.sand, Material.gravel]);
+    expect(
+      first.materials[(layout.height - 2) * layout.width + centerX],
+    ).toBe(Material.gravel);
+
+    const bottomRow = first.materials.subarray(
+      (layout.height - 1) * layout.width,
+    );
+    expect(bottomRow).toEqual(new Uint8Array(layout.width).fill(Material.glass));
+    for (let y = 0; y < layout.height; y += 1) {
+      expect(first.materials[y * layout.width]).toBe(Material.glass);
+      expect(first.materials[y * layout.width + layout.width - 1]).toBe(
+        Material.glass,
+      );
+    }
   });
 });

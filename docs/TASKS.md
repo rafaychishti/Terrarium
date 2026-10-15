@@ -128,7 +128,8 @@ forming on the glass and running down, plus the ledger report.
 
 | ID | Owner | Needs | Status |
 | --- | --- | --- | --- |
-| M1-1 | Lead | M0 approved | todo |
+| M1-0 | Lead | M0-5 | done — acceptance checks passed, including independent QA |
+| M1-1 | Lead | M1-0 | todo |
 | M1-2 | Simulation | M1-1 | todo |
 | M1-3 | Simulation | M1-2 | todo |
 | M1-4 | Simulation | M1-3 | todo |
@@ -136,6 +137,32 @@ forming on the glass and running down, plus the ledger report.
 | M1-6 | Rendering | M1-2 | todo |
 | M1-7 | QA & tools | M1-1 | todo |
 | M1-8 | QA & tools | M1-5, M1-6, M1-7 | todo |
+
+### M1-0 · Correct the M0 foundation — Lead
+
+- Invert generated strata to gravel at the bottom, sand in the middle, and
+  soil on top; add a glass floor row and test the order.
+- Set the fixed simulation tick to 60 jar-seconds. Processes requiring finer
+  resolution use deterministic internal substeps.
+- Decouple worker scheduling from display refresh using a
+  ticks-per-second accumulator, never dropping due simulation ticks. Report
+  achieved speed and any slowdown, and interpolate between tick states.
+  Acknowledgement must keep each shared-buffer state stable until the renderer
+  has copied it.
+- Provide real-time (1 tick/60 seconds), 1 jar-hour per real minute (1
+  tick/second), default (60 ticks/second), and unbounded speed settings for
+  the lamp clock.
+- Fill unused contact-sheet cells with the Paper background colour.
+- Remove the temporary `.m0-5-randomness-check/` worktree without following
+  or deleting its `node_modules` junction target.
+
+**Acceptance:** tests verify layer order and glass floor; the clock defaults
+to a 60-second tick and 60 ticks/second; worker accumulation processes all
+due ticks without skipping and preserves published states until acknowledged;
+all speed presets are mapped; interpolation is
+tested; achieved speed and slowdown are reported; the 30-day preview finishes
+in under 120 seconds; contact-sheet remainder matches the Paper background;
+the named temporary folder is gone and the workspace `node_modules` remains.
 
 ### M1-1 · Fields and ledger contract — Lead
 
@@ -202,8 +229,9 @@ names the module.
 ### M1-8 · M1 sign-off — QA & tools
 
 Run the M1 acceptance set, `npm run jar -- --seed 7 --days 30 --out out/m1`,
-and tick timing against the DESIGN §9 budget at Medium; write
-`docs/checkpoints/M1.md`.
+finish the 30-day Medium preview within 2 minutes, and check tick timing
+against the DESIGN §9 budget; write `docs/checkpoints/M1.md`.
 
 **Acceptance:** every M1 check passes or is listed as a known gap with a
-reason.
+reason; `npm run jar -- --seed 7 --days 30 --out out/m1` completes in under
+120 seconds at Medium.

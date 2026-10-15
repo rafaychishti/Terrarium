@@ -5,10 +5,15 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { CpuBackend } from "../src/sim/cpu-backend";
-import { drawPaper, type PaperCanvasContext } from "../src/render/paper";
+import {
+  PAPER_COLOR,
+  drawPaper,
+  type PaperCanvasContext,
+} from "../src/render/paper";
 import type { Seed } from "../src/shared/prng";
 
-const TICKS_PER_DAY = 60 * 60 * 24 * 60;
+export const JAR_SECONDS_PER_TICK = 60;
+export const TICKS_PER_DAY = (24 * 60 * 60) / JAR_SECONDS_PER_TICK;
 const IMAGE_WIDTH = 384;
 const IMAGE_HEIGHT = 576;
 const CONTACT_COLUMNS = 4;
@@ -28,6 +33,14 @@ interface JarReport {
   readonly timing: {
     readonly totalMs: number;
     readonly perTickMs: number;
+  };
+  readonly runtime: {
+    readonly mode: "unbounded";
+    readonly targetTicksPerSecond: null;
+    readonly achievedTicksPerSecond: number;
+    readonly slowdownFactor: null;
+    readonly jarSecondsPerTick: number;
+    readonly elapsedMs: number;
   };
   readonly stateBufferHash: string;
   readonly events: Readonly<Record<string, number>>;
@@ -122,6 +135,8 @@ async function writeContactSheet(images: readonly Buffer[], outputDirectory: str
   const rows = Math.ceil(images.length / CONTACT_COLUMNS);
   const canvas = createCanvas(CONTACT_COLUMNS * IMAGE_WIDTH, rows * IMAGE_HEIGHT);
   const context = canvas.getContext("2d");
+  context.fillStyle = PAPER_COLOR;
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
   for (let index = 0; index < images.length; index += 1) {
     const image = await loadImage(images[index]);
@@ -157,6 +172,13 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
   }
 
   const totalMs = performance.now() - start;
+  if (!Number.isFinite(totalMs) || totalMs <= 0) {
+    throw new RangeError("Simulation elapsed time must be a positive finite number");
+  }
+  const achievedTicksPerSecond = ticks / (totalMs / 1_000);
+  if (!Number.isFinite(achievedTicksPerSecond) || achievedTicksPerSecond < 0) {
+    throw new RangeError("Achieved simulation speed must be a finite non-negative number");
+  }
   await writeContactSheet(images, outputDirectory);
   const report: JarReport = {
     seed: options.seed,
@@ -165,6 +187,14 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
     timing: {
       totalMs,
       perTickMs: totalMs / ticks,
+    },
+    runtime: {
+      mode: "unbounded",
+      targetTicksPerSecond: null,
+      achievedTicksPerSecond,
+      slowdownFactor: null,
+      jarSecondsPerTick: JAR_SECONDS_PER_TICK,
+      elapsedMs: totalMs,
     },
     stateBufferHash: hashStateBuffer(backend),
     events: countEvents(backend.events.snapshot()),

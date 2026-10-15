@@ -1,6 +1,6 @@
 # Terrarium — Design
 
-*Version 0.2, 15 October 2026. Owner: Faisal Chishti. Repository: public from day one.*
+*Version 0.3, 15 October 2026. Owner: Faisal Chishti. Repository: public from day one.*
 
 This is the one document every agent reads before touching the code. It says
 what Terrarium is, the rules that settle design questions, how it is built,
@@ -66,13 +66,14 @@ These decide most questions about where code goes and what it does.
    Only light energy enters; heat leaves. Misting is the single, logged
    exception. Conservation is checked by tests every tick in debug builds.
 3. **Deterministic.** A seed plus the log of your actions reproduces a jar
-   exactly: fixed timestep, seeded PRNG, no `Math.random`, no wall-clock
-   time inside the simulation. This gives replays, share links, bug reports
+   exactly: fixed timestep of 60 jar-seconds, seeded PRNG, no `Math.random`,
+   no wall-clock time inside the simulation. This gives replays, share links, bug reports
    that reproduce, and headless testing. Because `Math.sin`, `Math.exp`,
    `Math.pow` and friends may differ between JavaScript engines, the
    simulation uses its own implementations of these from `src/shared/`;
    iteration order is always explicit (no iteration over object keys or
-   `Set`s inside a tick).
+   `Set`s inside a tick). A process needing finer resolution uses
+   deterministic internal substeps within the fixed tick.
 4. **The simulation never waits for the screen.** The simulation runs in a
    Web Worker at a fixed tick; the renderer draws at the display's rate and
    interpolates between ticks. Neither blocks the other.
@@ -128,7 +129,10 @@ These decide most questions about where code goes and what it does.
 
 - **State** is plain typed arrays in one `SharedArrayBuffer`, double-buffered.
   The worker writes the back buffer, then flips an atomic index. The renderer
-  only ever reads the front buffer.
+  only ever reads the front buffer. After publishing a tick batch, the worker
+  waits for the main thread to copy that state and acknowledge its tick before
+  publishing another batch, so a delayed message handler cannot read a newer
+  state in place of the notified one.
 - **Actions** (mist, seed, tilt, tap) are queued with the tick they apply to,
   which is what makes replays exact (Rule 3).
 - **Events** (birth, death, bloom, drought, first flower) are appended to a
@@ -136,6 +140,18 @@ These decide most questions about where code goes and what it does.
 - **Backends** implement one interface, `SimBackend { step(n), read(), apply(action) }`.
   The CPU backend is complete first; the WebGPU backend replaces the field
   step only, then grows.
+- The worker uses a monotonic-time accumulator at the selected tick rate;
+  it never drops simulation ticks. If it cannot sustain the requested rate,
+  jar time slows and the achieved rate is reported. Publication waits for the
+  main thread's acknowledgement after copying each batch state; accumulated
+  tick debt remains in the scheduler while waiting. The renderer
+  interpolates between the previous and current tick states.
+
+The lamp-clock speed presets are **real time** (1 tick per 60 real seconds),
+**1 jar-hour per real minute** (1 tick per real second), **default** (60
+ticks per real second, about one jar-day per 24 real seconds), and **as fast
+as the machine allows**. The default is provisional and will be revisited in
+M4 when creatures need smooth motion at a finer timescale.
 
 ---
 
@@ -145,6 +161,9 @@ These decide most questions about where code goes and what it does.
 
 A 2D cross-section grid (default 256 × 384 cells, 1 cell ≈ 1 mm²) in a
 case 256 mm wide. Each cell carries:
+
+The case's side walls and floor are glass. The seeded M0 strata run from
+bottom to top as drainage gravel, sand, then plant-supporting soil.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -286,6 +305,7 @@ No UI framework, physics engine or game engine. Any addition goes here first.
   CPU.
 - Download: under 500 KB of JavaScript, gzip.
 - Memory: under 300 MB at High.
+- Headless M1 preview: 30 jar-days in under 120 seconds at Medium.
 
 ---
 
@@ -315,7 +335,7 @@ off on the acceptance checks before it comes to Faisal.
 | # | Milestone | Done when |
 | --- | --- | --- |
 | M0 | **Skeleton** — repo, CI, worker, fixed tick, PRNG, state buffer, `npm run jar` producing an empty jar | CI green; the same seed gives byte-identical `report.json` twice |
-| M1 | **The physical jar** — materials, granular motion, soil water, heat, light, the water cycle | Water balances to tolerance over 30 jar-days; condensation forms on the glass and runs down in the contact sheet |
+| M1 | **The physical jar** — materials, granular motion, soil water, heat, light, the water cycle | Water balances to tolerance over 30 jar-days; condensation forms on the glass and runs down in the contact sheet; the 30-day Medium preview finishes within 2 minutes |
 | M2 | **Seeing it** — WebGL2 and Paper renderers, the lamp, the glass, mist and tilt | A jar runs in the browser at 60 fps on Medium; lamp and mist visibly change the water cycle |
 | M3 | **Plants** — growth, photosynthesis, death, decomposition, carbon and nutrient cycles | Carbon and nutrients balance; moss and fern survive 60 days in ≥ 80% of 50 seeds |
 | M4 | **Creatures** — three roles, brains, reproduction, evolution, magnifying glass | Populations persist 60 days in ≥ 70% of seeds; genomes visibly drift across generations |
@@ -362,6 +382,7 @@ or *change this*.
 | Narrator | **Deferred beyond v0.1** | Protects scope; keeps the core deterministic |
 | Where agents work | **Claude Code on Faisal's Windows machine, repo on GitHub** | Better debugging, reproducibility and control |
 | Repository | **Public from day one** | Engineering decisions and progress are visible |
+| Simulation timestep | **60 jar-seconds per tick** | 60 Hz field updates produced 5.2 million ticks per jar-day; coarser ticks keep 30-day physical previews tractable while finer processes can substep deterministically |
 
 The task board is `docs/TASKS.md`; the lead's operating rules are in
 `CLAUDE.md`; each agent's brief is in `.claude/agents/`.
