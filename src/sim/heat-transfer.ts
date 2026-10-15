@@ -32,11 +32,13 @@ export class HeatTransfer {
     if (materialsChanged) this.materialPropertiesDirty = true;
     if (this.materialPropertiesDirty) this.updateMaterialProperties(state, layout);
 
+    let hasAbsorbedLight = false;
     let greatestTemperatureChange = 0;
     for (let index = 0; index < layout.cells; index += 1) {
       const absorbedLight = state.light[index];
       const heat = absorbedLight * LIGHT_TO_HEAT;
       state.temperature[index] += heat;
+      hasAbsorbedLight ||= absorbedLight > 0;
       greatestTemperatureChange = Math.max(greatestTemperatureChange, Math.abs(heat));
     }
 
@@ -77,7 +79,10 @@ export class HeatTransfer {
       );
     }
 
-    return greatestTemperatureChange < SETTLED_TEMPERATURE_DELTA_C;
+    return (
+      !hasAbsorbedLight &&
+      greatestTemperatureChange < SETTLED_TEMPERATURE_DELTA_C
+    );
   }
 
   private updateMaterialProperties(state: StateView, layout: StateLayout): void {

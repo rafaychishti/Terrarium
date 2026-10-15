@@ -114,7 +114,7 @@ export class CpuBackend implements SimBackend {
               yMm: action.yMm,
               intensity: action.intensity,
             };
-            this.thermalActive ||= action.intensity > 0;
+            this.thermalActive = true;
             this.lightDirty = true;
           }
           this.events.append(eventForAction(action));
@@ -126,8 +126,11 @@ export class CpuBackend implements SimBackend {
       if (!this.granularSettled && !materialsChanged) {
         this.granularSettled = true;
       }
+      if (materialsChanged && this.lamp.intensity > 0) {
+        this.thermalActive = true;
+        this.lightDirty = true;
+      }
       if (this.thermalActive) {
-        if (materialsChanged) this.lightDirty = true;
         if (this.lightDirty) {
           this.lightTransport.step(this.state, this.layout, this.lamp);
           this.lightDirty = false;
