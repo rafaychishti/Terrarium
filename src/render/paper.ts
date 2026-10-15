@@ -20,12 +20,15 @@ export interface PaperCanvasContext {
   clip(): void;
 }
 
+export type PaperDebugView = "moisture" | "temperature" | "light";
+
 export interface PaperOptions {
   readonly width: number;
   readonly height: number;
   readonly x?: number;
   readonly y?: number;
   readonly physicalWidthMm?: number;
+  readonly debugView?: PaperDebugView;
 }
 
 export const PAPER_BACKGROUND_COLOR = "#eee7d8";
@@ -146,6 +149,195 @@ function drawMaterials(
   context.restore();
 }
 
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function drawWaterCycle(
+  context: PaperCanvasContext,
+  state: StateView,
+  layout: StateLayout,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const cellWidth = width / layout.width;
+  const cellHeight = height / layout.height;
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+
+  for (let index = 0; index < layout.cells; index += 1) {
+    const material = state.materials[index] ?? 0;
+    const water = Math.max(0, state.water[index] ?? 0);
+    const cellX = x + (index % layout.width) * cellWidth;
+    const cellY = y + Math.floor(index / layout.width) * cellHeight;
+    if (water > 0 && material !== 0 && material !== 1 && material !== 7) {
+      context.fillStyle = "#8ebdc0";
+      context.globalAlpha = Math.min(0.38, (water / (water + 0.015)) * 0.42);
+      context.fillRect(cellX, cellY, cellWidth + 0.25, cellHeight + 0.25);
+    } else if (water > 0.0002 && material === 0) {
+      context.fillStyle = "#dcebe5";
+      context.globalAlpha = Math.min(0.16, (water / (water + 0.003)) * 0.18);
+      context.fillRect(cellX, cellY, cellWidth + 0.25, cellHeight + 0.25);
+    }
+  }
+
+  context.globalAlpha = 1;
+  context.restore();
+}
+
+function drawDroplet(context: PaperCanvasContext, x: number, y: number, radius: number): void {
+  context.beginPath();
+  context.moveTo(x, y - radius);
+  context.quadraticCurveTo(x + radius * 0.85, y + radius * 0.1, x, y + radius);
+  context.quadraticCurveTo(x - radius * 0.85, y + radius * 0.1, x, y - radius);
+  context.closePath();
+  context.fill();
+}
+
+function drawGlassDroplets(
+  context: PaperCanvasContext,
+  state: StateView,
+  layout: StateLayout,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const cellWidth = width / layout.width;
+  const cellHeight = height / layout.height;
+  context.fillStyle = "#fffdf5";
+  context.strokeStyle = "#8ebdc0";
+  context.lineWidth = Math.max(0.6, cellWidth * 0.35);
+  for (let row = 0; row < layout.height; row += 1) {
+    for (const column of [0, layout.width - 1]) {
+      const index = row * layout.width + column;
+      if ((state.materials[index] ?? 0) !== 1) continue;
+      const insideIndex = row * layout.width + (column === 0 ? 1 : layout.width - 2);
+      const water = Math.max(
+        state.water[index] ?? 0,
+        state.water[insideIndex] ?? 0,
+      );
+      if (water <= 0.002) continue;
+
+      const seed = hash(column, row);
+      const radius = Math.max(
+        0.8,
+        Math.min(cellWidth, cellHeight) * (0.3 + clamp01(water / (water + 0.04)) * 0.65),
+      );
+      const offset = (seed % 41) / 100;
+      const dropX = x + (column === 0 ? 0.7 + offset : width - 0.7 - offset);
+      const dropY = y + (row + 0.5) * cellHeight;
+      drawDroplet(context, dropX, dropY, radius);
+      context.globalAlpha = 0.55;
+      context.stroke();
+      context.globalAlpha = 1;
+    }
+  }
+}
+
+function drawLamp(
+  context: PaperCanvasContext,
+  state: StateView | undefined,
+  layout: StateLayout | undefined,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  let brightest = 0;
+  if (state && layout) {
+    for (let i = 0; i < layout.cells; i += 1) {
+      brightest = Math.max(brightest, state.light[i] ?? 0);
+    }
+  }
+  const glow = clamp01(brightest / 0.5);
+  const center = x + width * 0.5;
+  const shadeTop = y - height * 0.045;
+  const shadeWidth = width * 0.22;
+
+  context.save();
+  context.strokeStyle = "#82745f";
+  context.fillStyle = "#c4a875";
+  context.lineWidth = Math.max(1, width * 0.008);
+  context.beginPath();
+  context.moveTo(center, shadeTop - height * 0.025);
+  context.lineTo(center, shadeTop);
+  context.lineTo(center - shadeWidth * 0.5, shadeTop + height * 0.018);
+  context.lineTo(center + shadeWidth * 0.5, shadeTop + height * 0.018);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.strokeStyle = "#d9aa59";
+  context.globalAlpha = 0.08 + glow * 0.18;
+  context.lineWidth = Math.max(1, width * 0.006);
+  context.beginPath();
+  context.moveTo(center - shadeWidth * 0.3, shadeTop + height * 0.022);
+  context.lineTo(x + width * 0.22, y + height * 0.11);
+  context.moveTo(center + shadeWidth * 0.3, shadeTop + height * 0.022);
+  context.lineTo(x + width * 0.78, y + height * 0.11);
+  context.moveTo(center, shadeTop + height * 0.022);
+  context.lineTo(center, y + height * 0.14);
+  context.stroke();
+  context.restore();
+}
+
+function debugColor(view: PaperDebugView, value: number, maxLight: number): string {
+  const amount = view === "moisture"
+    ? clamp01(Math.max(0, value) / (Math.max(0, value) + 0.05))
+    : view === "temperature"
+      ? clamp01((value - 5) / 35)
+      : maxLight > 0
+        ? clamp01(value / maxLight)
+        : 0;
+  const start = view === "temperature" ? [74, 105, 164] : [239, 238, 217];
+  const end = view === "temperature" ? [204, 83, 57] : view === "light" ? [219, 168, 69] : [43, 116, 162];
+  const channel = (index: number): number =>
+    Math.round(start[index] + (end[index] - start[index]) * amount);
+  return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+}
+
+function drawDebugView(
+  context: PaperCanvasContext,
+  state: StateView,
+  layout: StateLayout,
+  view: PaperDebugView,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  let maxLight = 0;
+  if (view === "light") {
+    for (let i = 0; i < layout.cells; i += 1) {
+      maxLight = Math.max(maxLight, state.light[i] ?? 0);
+    }
+  }
+  const cellWidth = width / layout.width;
+  const cellHeight = height / layout.height;
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+  for (let index = 0; index < layout.cells; index += 1) {
+    const value = state[view === "moisture" ? "water" : view][index] ?? 0;
+    context.fillStyle = debugColor(view, value, maxLight);
+    context.globalAlpha = 0.78;
+    context.fillRect(
+      x + (index % layout.width) * cellWidth,
+      y + Math.floor(index / layout.width) * cellHeight,
+      cellWidth + 0.25,
+      cellHeight + 0.25,
+    );
+  }
+  context.globalAlpha = 1;
+  context.restore();
+}
+
 function drawEmptyLife(context: PaperCanvasContext, x: number, y: number, width: number, height: number): void {
   context.strokeStyle = "#536e4b";
   context.lineWidth = Math.max(1, width * 0.009);
@@ -183,8 +375,24 @@ export function drawPaper(
   const interiorHeight = caseHeight * 0.89;
 
   drawCase(context, x, y, caseWidth, caseHeight);
+  drawLamp(context, state, layout, x, y, caseWidth, caseHeight);
   if (state && layout) {
     drawMaterials(context, state, layout, interiorX, interiorY, interiorWidth, interiorHeight);
+    if (options.debugView) {
+      drawDebugView(
+        context,
+        state,
+        layout,
+        options.debugView,
+        interiorX,
+        interiorY,
+        interiorWidth,
+        interiorHeight,
+      );
+    } else {
+      drawWaterCycle(context, state, layout, interiorX, interiorY, interiorWidth, interiorHeight);
+      drawGlassDroplets(context, state, layout, interiorX, interiorY, interiorWidth, interiorHeight);
+    }
   } else {
     drawEmptyLife(context, interiorX, interiorY, interiorWidth, interiorHeight);
   }
