@@ -1,4 +1,5 @@
 import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -28,6 +29,7 @@ interface JarReport {
     readonly totalMs: number;
     readonly perTickMs: number;
   };
+  readonly stateBufferHash: string;
   readonly events: Readonly<Record<string, number>>;
   readonly ledger: Readonly<Record<string, number>>;
 }
@@ -88,6 +90,24 @@ function countEvents(events: readonly { readonly type: string }[]): Record<strin
   return counts;
 }
 
+function hashStateBuffer(backend: CpuBackend): string {
+  const state = backend.read();
+  const hash = createHash("sha256");
+  for (const field of [
+    state.materials,
+    state.water,
+    state.temperature,
+    state.co2,
+    state.oxygen,
+    state.nutrients,
+    state.microbes,
+    state.light,
+  ]) {
+    hash.update(new Uint8Array(field.buffer, field.byteOffset, field.byteLength));
+  }
+  return hash.digest("hex");
+}
+
 function renderDay(backend: CpuBackend): Buffer {
   const canvas = createCanvas(IMAGE_WIDTH, IMAGE_HEIGHT);
   const context = canvas.getContext("2d") as unknown as PaperCanvasContext;
@@ -146,6 +166,7 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
       totalMs,
       perTickMs: totalMs / ticks,
     },
+    stateBufferHash: hashStateBuffer(backend),
     events: countEvents(backend.events.snapshot()),
     ledger: {},
   };
