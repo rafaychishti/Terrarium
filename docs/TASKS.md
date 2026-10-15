@@ -26,7 +26,7 @@ headless, with CI guarding it.
 | M0-2 | Simulation | M0-1 | done — QA passed; deterministic replay, scheduled actions, and seeded layers verified |
 | M0-3 | Rendering | M0-1 | done — QA passed; Paper renderer tested in Node and browser preview |
 | M0-4 | QA & tools | M0-2, M0-3 | done — QA confirmed 10 images, contact sheet, report, and repeated-run matching outputs |
-| M0-5 | QA & tools | M0-4 | doing |
+| M0-5 | QA & tools | M0-4 | done — QA passed; repeated jar runs match, and both CI runners uploaded contact sheets |
 
 ### M0-1 · Scaffold and shared contracts — Lead
 
