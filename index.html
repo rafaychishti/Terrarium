@@ -4,11 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#eee7d8" />
-    <title>Terrarium</title>
+    <meta name="description" content="A small deterministic world, sealed in glass." />
+    <title>Terrarium — a world in glass</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Georgia, "Times New Roman", serif;
+        color: #354139;
+        background: #eee7d8;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; min-height: 100vh; }
+      #app {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        width: 100%;
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse at 50% 38%, rgba(255, 253, 244, .82), transparent 57%),
+          #eee7d8;
+      }
+      header { z-index: 1; padding: 1.2rem 1.5rem 0; text-align: center; }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.25rem, 2.4vw, 1.8rem);
+        font-weight: 400;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      #status { margin: .35rem 0 0; color: #667064; font-size: .9rem; font-style: italic; }
+      #scene { min-height: 300px; }
+      .terrarium-canvas { display: block; width: 100%; height: 100%; min-height: 0; }
+      @media (max-height: 420px) {
+        header { padding-top: .4rem; }
+        #status { display: none; }
+      }
+    </style>
   </head>
   <body>
     <main id="app" aria-label="Terrarium simulation">
-      <p>Terrarium skeleton</p>
+      <header>
+        <h1>Terrarium</h1>
+        <p id="status" aria-live="polite">Preparing the little world…</p>
+      </header>
+      <div id="scene"></div>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
