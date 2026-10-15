@@ -5,12 +5,22 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { CpuBackend } from "../src/sim/cpu-backend";
+import type { LedgerTotals } from "../src/shared/ledger";
+import { g, ml } from "../src/shared/units";
 import {
   PAPER_COLOR,
   drawPaper,
   type PaperCanvasContext,
 } from "../src/render/paper";
 import type { Seed } from "../src/shared/prng";
+import {
+  assertLedgerBalanced,
+  findLargestLedgerError,
+  LEDGER_TOLERANCE,
+  type LedgerDayTotals,
+  type LedgerError,
+  type LedgerSource,
+} from "./ledger";
 
 export const JAR_SECONDS_PER_TICK = 60;
 export const TICKS_PER_DAY = (24 * 60 * 60) / JAR_SECONDS_PER_TICK;
@@ -22,6 +32,7 @@ export interface JarOptions {
   readonly seed: Seed;
   readonly days: number;
   readonly out: string;
+  readonly lampIntensity?: number;
 }
 
 export interface JarArguments extends JarOptions {}
@@ -44,13 +55,21 @@ interface JarReport {
   };
   readonly stateBufferHash: string;
   readonly events: Readonly<Record<string, number>>;
-  readonly ledger: Readonly<Record<string, number>>;
+  readonly ledger: {
+    readonly days: readonly LedgerDayTotals[];
+    readonly largestPerTickError: LedgerError;
+  };
+}
+
+interface LedgerBackend extends CpuBackend {
+  readonly ledger?: LedgerSource;
 }
 
 export function parseJarArguments(args: readonly string[]): JarArguments {
   let seed: number | undefined;
   let days: number | undefined;
   let out: string | undefined;
+  let lampIntensity = 1;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -79,6 +98,14 @@ export function parseJarArguments(args: readonly string[]): JarArguments {
       case "--out":
         out = value;
         break;
+      case "--lamp-intensity": {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+          throw new RangeError("--lamp-intensity must be in [0, 1]");
+        }
+        lampIntensity = parsed;
+        break;
+      }
       default:
         throw new Error(`Unknown argument: ${flag}`);
     }
@@ -92,7 +119,7 @@ export function parseJarArguments(args: readonly string[]): JarArguments {
     throw new RangeError("--days exceeds the safe simulation tick range");
   }
 
-  return { seed, days, out };
+  return { seed, days, out, lampIntensity };
 }
 
 function countEvents(events: readonly { readonly type: string }[]): Record<string, number> {
@@ -119,6 +146,32 @@ function hashStateBuffer(backend: CpuBackend): string {
     hash.update(new Uint8Array(field.buffer, field.byteOffset, field.byteLength));
   }
   return hash.digest("hex");
+}
+
+function readLedgerTotals(backend: LedgerBackend): LedgerTotals {
+  if (backend.ledger) return backend.ledger.totals();
+  const state = backend.read();
+  const total = (values: Float32Array): number => {
+    let amount = 0;
+    for (let index = 0; index < values.length; index += 1) {
+      amount += values[index];
+    }
+    return amount;
+  };
+  return {
+    water: ml(total(state.water)),
+    carbon: g(total(state.co2)),
+    nutrients: g(total(state.nutrients)),
+  };
+}
+
+function largestError(
+  initial: LedgerTotals,
+  current: LedgerTotals,
+  tick: number,
+  module: string | null,
+): LedgerError {
+  return findLargestLedgerError(initial, current, tick, module);
 }
 
 function renderDay(backend: CpuBackend): Buffer {
@@ -159,12 +212,65 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
 
   const outputDirectory = options.out;
   await mkdir(outputDirectory, { recursive: true });
-  const backend = new CpuBackend(options.seed);
+  const backend = new CpuBackend(options.seed) as LedgerBackend;
+  const lampIntensity = options.lampIntensity ?? 1;
+  if (!Number.isFinite(lampIntensity) || lampIntensity < 0 || lampIntensity > 1) {
+    throw new RangeError("Lamp intensity must be in [0, 1]");
+  }
+  if (lampIntensity > 0) {
+    backend.apply({
+      tick: 1,
+      type: "lamp",
+      xMm: 1,
+      yMm: 0,
+      intensity: lampIntensity,
+    });
+  }
   const images: Buffer[] = [];
+  const initialLedgerTotals = readLedgerTotals(backend);
+  const ledgerDays: LedgerDayTotals[] = [];
+  let largestPerTickError: LedgerError = {
+    amount: 0,
+    resource: null,
+    module: null,
+    tick: 0,
+  };
   const start = performance.now();
 
   for (let day = 1; day <= options.days; day += 1) {
-    backend.step(TICKS_PER_DAY);
+    if (backend.ledger) {
+      for (let dayTick = 0; dayTick < TICKS_PER_DAY; dayTick += 1) {
+        backend.step(1);
+        const error = largestError(
+          initialLedgerTotals,
+          backend.ledger.totals(),
+          backend.tick,
+          backend.ledger.lastModule ?? null,
+        );
+        if (error.amount > largestPerTickError.amount) {
+          largestPerTickError = error;
+        }
+        if (process.env.NODE_ENV !== "production") {
+          assertLedgerBalanced(error, LEDGER_TOLERANCE);
+        }
+      }
+    } else {
+      backend.step(TICKS_PER_DAY);
+    }
+    const totals = readLedgerTotals(backend);
+    const error = largestError(
+      initialLedgerTotals,
+      totals,
+      backend.tick,
+      backend.ledger?.lastModule ?? null,
+    );
+    if (error.amount > largestPerTickError.amount) {
+      largestPerTickError = error;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      assertLedgerBalanced(error, LEDGER_TOLERANCE);
+    }
+    ledgerDays.push({ day, totals });
     const image = renderDay(backend);
     images.push(image);
     const filename = `day-${String(day).padStart(2, "0")}.png`;
@@ -198,7 +304,10 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
     },
     stateBufferHash: hashStateBuffer(backend),
     events: countEvents(backend.events.snapshot()),
-    ledger: {},
+    ledger: {
+      days: ledgerDays,
+      largestPerTickError,
+    },
   };
   await writeFile(
     path.join(outputDirectory, "report.json"),

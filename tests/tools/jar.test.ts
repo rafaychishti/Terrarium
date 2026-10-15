@@ -4,7 +4,10 @@ import { readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { leakingJar } from "../fixtures/leaking-ledger";
+import { expectBalanced } from "../helpers/expect-balanced";
 import { PAPER_COLOR } from "../../src/render/paper";
+import { g, ml } from "../../src/shared/units";
 import {
   JAR_SECONDS_PER_TICK,
   parseJarArguments,
@@ -12,8 +15,13 @@ import {
   TICKS_PER_DAY,
 } from "../../tools/jar";
 
-const outputDirectory = path.join(process.cwd(), "out", "test-jar");
-const determinismDirectory = path.join(process.cwd(), "out", "test-jar-determinism");
+const testOutputDirectory = path.join(
+  process.cwd(),
+  "out",
+  `test-jar-${process.pid}`,
+);
+const outputDirectory = path.join(testOutputDirectory, "single");
+const determinismDirectory = path.join(testOutputDirectory, "determinism");
 const projectRoot = fileURLToPath(new URL("../..", import.meta.url));
 const tsxCli = fileURLToPath(
   new URL("../../node_modules/tsx/dist/cli.mjs", import.meta.url),
@@ -21,8 +29,7 @@ const tsxCli = fileURLToPath(
 const jarScript = fileURLToPath(new URL("../../tools/jar.ts", import.meta.url));
 
 afterEach(async () => {
-  await rm(outputDirectory, { recursive: true, force: true });
-  await rm(determinismDirectory, { recursive: true, force: true });
+  await rm(testOutputDirectory, { recursive: true, force: true });
 });
 
 describe("jar preview tool", () => {
@@ -31,13 +38,38 @@ describe("jar preview tool", () => {
       seed: 7,
       days: 10,
       out: "out/m0",
+      lampIntensity: 1,
     });
+    expect(
+      parseJarArguments([
+        "--seed",
+        "7",
+        "--days",
+        "10",
+        "--out",
+        "out/m0",
+        "--lamp-intensity",
+        "0.4",
+      ]).lampIntensity,
+    ).toBe(0.4);
     expect(() => parseJarArguments(["--seed", "x", "--days", "1", "--out", "out"])).toThrow(
       RangeError,
     );
     expect(() => parseJarArguments(["--seed", "7", "--days", "0", "--out", "out"])).toThrow(
       RangeError,
     );
+    expect(() =>
+      parseJarArguments([
+        "--seed",
+        "7",
+        "--days",
+        "1",
+        "--out",
+        "out",
+        "--lamp-intensity",
+        "1.1",
+      ]),
+    ).toThrow(RangeError);
   });
 
   it("writes a day image, contact sheet, and timing/event/ledger report", async () => {
@@ -62,8 +94,18 @@ describe("jar preview tool", () => {
     });
     expect(report.runtime.elapsedMs).toBeGreaterThan(0);
     expect(Number.isFinite(report.runtime.achievedTicksPerSecond)).toBe(true);
-    expect(report.events).toEqual({});
-    expect(report.ledger).toEqual({});
+    expect(report.events).toEqual({ action: 1 });
+    expect(report.ledger.days).toHaveLength(1);
+    expect(report.ledger.days[0].day).toBe(1);
+    expect(report.ledger.days[0].totals.water).toBeGreaterThanOrEqual(0);
+    expect(report.ledger.days[0].totals.carbon).toBe(0);
+    expect(report.ledger.days[0].totals.nutrients).toBe(0);
+    expect(report.ledger.largestPerTickError).toEqual({
+      amount: 0,
+      resource: null,
+      module: null,
+      tick: 0,
+    });
     expect(writtenReport).toEqual(report);
     const dayImage = await readFile(path.join(outputDirectory, "day-01.png"));
     const contactSheet = await readFile(path.join(outputDirectory, "contact-sheet.png"));
@@ -84,6 +126,32 @@ describe("jar preview tool", () => {
       Number.parseInt(color[3], 16),
       255,
     ]);
+  }, 30_000);
+
+  it("fails loudly with the leaking module for an unbalanced jar fixture", () => {
+    expect(() => expectBalanced(leakingJar)).toThrow(/evaporation leaked water/);
+  });
+
+  it("checks optional carbon and nutrient totals through the shared ledger contract", () => {
+    expect(() =>
+      expectBalanced({
+        initialTotals: { water: ml(2), carbon: g(4), nutrients: g(3) },
+        ledger: {
+          totals: () => ({ water: ml(2), carbon: g(4), nutrients: g(2.9) }),
+          lastModule: "decomposition",
+        },
+      }),
+    ).toThrow(/decomposition leaked nutrients/);
+
+    expect(() =>
+      expectBalanced({
+        initialTotals: { water: ml(2) },
+        ledger: {
+          totals: () => ({ water: ml(2), carbon: g(0.1) }),
+          lastModule: "photosynthesis",
+        },
+      }),
+    ).toThrow(/photosynthesis leaked carbon/);
   });
 
   it("is deterministic across two CLI runs with the same seed", async () => {
