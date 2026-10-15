@@ -22,9 +22,9 @@ headless, with CI guarding it.
 
 | ID | Owner | Needs | Status |
 | --- | --- | --- | --- |
-| M0-1 | Lead | — | doing — scaffold committed locally; waiting for the GitHub remote |
-| M0-2 | Simulation | M0-1 | todo |
-| M0-3 | Rendering | M0-1 | todo |
+| M0-1 | Lead | — | done — scaffold and shared contracts pushed; CI green on Windows and Ubuntu |
+| M0-2 | Simulation | M0-1 | doing |
+| M0-3 | Rendering | M0-1 | doing |
 | M0-4 | QA & tools | M0-2, M0-3 | todo |
 | M0-5 | QA & tools | M0-4 | todo |
 
