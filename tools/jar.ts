@@ -19,7 +19,6 @@ import {
   LEDGER_TOLERANCE,
   type LedgerDayTotals,
   type LedgerError,
-  type LedgerSource,
 } from "./ledger";
 
 export const JAR_SECONDS_PER_TICK = 60;
@@ -61,9 +60,7 @@ interface JarReport {
   };
 }
 
-interface LedgerBackend extends CpuBackend {
-  readonly ledger?: LedgerSource;
-}
+type LedgerBackend = CpuBackend;
 
 export function parseJarArguments(args: readonly string[]): JarArguments {
   let seed: number | undefined;
@@ -212,7 +209,7 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
 
   const outputDirectory = options.out;
   await mkdir(outputDirectory, { recursive: true });
-  const backend = new CpuBackend(options.seed) as LedgerBackend;
+  const backend = new CpuBackend(options.seed);
   const lampIntensity = options.lampIntensity ?? 1;
   if (!Number.isFinite(lampIntensity) || lampIntensity < 0 || lampIntensity > 1) {
     throw new RangeError("Lamp intensity must be in [0, 1]");
@@ -242,7 +239,7 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
       for (let dayTick = 0; dayTick < TICKS_PER_DAY; dayTick += 1) {
         backend.step(1);
         const error = largestError(
-          initialLedgerTotals,
+          backend.ledger.expectedTotals(),
           backend.ledger.totals(),
           backend.tick,
           backend.ledger.lastModule ?? null,
@@ -259,7 +256,7 @@ export async function runJar(options: JarOptions): Promise<JarReport> {
     }
     const totals = readLedgerTotals(backend);
     const error = largestError(
-      initialLedgerTotals,
+      backend.ledger?.expectedTotals?.() ?? initialLedgerTotals,
       totals,
       backend.tick,
       backend.ledger?.lastModule ?? null,

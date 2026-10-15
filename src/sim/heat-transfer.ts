@@ -28,17 +28,16 @@ export class HeatTransfer {
     state: StateView,
     layout: StateLayout,
     materialsChanged = false,
+    elapsedTicks = 1,
   ): boolean {
     if (materialsChanged) this.materialPropertiesDirty = true;
     if (this.materialPropertiesDirty) this.updateMaterialProperties(state, layout);
 
-    let hasAbsorbedLight = false;
     let greatestTemperatureChange = 0;
     for (let index = 0; index < layout.cells; index += 1) {
       const absorbedLight = state.light[index];
-      const heat = absorbedLight * LIGHT_TO_HEAT;
+      const heat = absorbedLight * LIGHT_TO_HEAT * elapsedTicks;
       state.temperature[index] += heat;
-      hasAbsorbedLight ||= absorbedLight > 0;
       greatestTemperatureChange = Math.max(greatestTemperatureChange, Math.abs(heat));
     }
 
@@ -51,14 +50,18 @@ export class HeatTransfer {
       const horizontal = horizontalConductivity[index];
       if (horizontal > 0) {
         const transfer =
-          (state.temperature[index + 1] - temperature) * horizontal;
+          (state.temperature[index + 1] - temperature) *
+          horizontal *
+          elapsedTicks;
         temperatureDelta[index] += transfer;
         temperatureDelta[index + 1] -= transfer;
       }
       const vertical = verticalConductivity[index];
       if (vertical > 0) {
         const transfer =
-          (state.temperature[index + layout.width] - temperature) * vertical;
+          (state.temperature[index + layout.width] - temperature) *
+          vertical *
+          elapsedTicks;
         temperatureDelta[index] += transfer;
         temperatureDelta[index + layout.width] -= transfer;
       }
@@ -69,8 +72,13 @@ export class HeatTransfer {
       let temperature =
         previousTemperature + temperatureDelta[index];
       if (state.materials[index] === Material.glass) {
-        temperature +=
-          (ROOM_TEMPERATURE_C - temperature) * BOUNDARY_COOLING_RATE;
+        let retainedHeat = 1;
+        for (let step = 0; step < elapsedTicks; step += 1) {
+          retainedHeat *= 1 - BOUNDARY_COOLING_RATE;
+        }
+        temperature =
+          ROOM_TEMPERATURE_C +
+          (temperature - ROOM_TEMPERATURE_C) * retainedHeat;
       }
       state.temperature[index] = temperature;
       greatestTemperatureChange = Math.max(
@@ -79,10 +87,7 @@ export class HeatTransfer {
       );
     }
 
-    return (
-      !hasAbsorbedLight &&
-      greatestTemperatureChange < SETTLED_TEMPERATURE_DELTA_C
-    );
+    return greatestTemperatureChange < SETTLED_TEMPERATURE_DELTA_C;
   }
 
   private updateMaterialProperties(state: StateView, layout: StateLayout): void {

@@ -31,8 +31,9 @@ function bytesForState(state: ReturnType<CpuBackend["read"]>): Uint8Array[] {
 
 describe("CPU reference backend", () => {
   it("replays the same seed and tick-keyed actions byte-for-byte after 10,000 ticks", () => {
-    const first = new CpuBackend("replay-seed");
-    const second = new CpuBackend("replay-seed");
+    const layout = createStateLayout(64, 96);
+    const first = new CpuBackend("replay-seed", { layout });
+    const second = new CpuBackend("replay-seed", { layout });
     const actions = [
       { tick: 1, type: "mist", amount: ml(2) },
       { tick: 3500, type: "tilt", degrees: 12 },
