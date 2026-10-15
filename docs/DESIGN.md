@@ -199,7 +199,8 @@ constants; a material's porosity is its pore-space fraction.
    case and absorbed by glass, water, leaves and soil; it also heats what it
    hits.
 2. **Heat.** Diffusion through materials; the glass loses heat to the room,
-   so it is the coolest surface.
+   so it is the coolest surface. The full-grid heat solver batches ten
+   jar-minutes between updates and scales transfer to elapsed ticks.
 3. **Granular motion.** Falling-sand cellular automaton for sand, gravel,
    soil and free water; tilting the case changes gravity's direction.
 4. **Soil water.** Moisture moves through soil by a simplified Darcy flow

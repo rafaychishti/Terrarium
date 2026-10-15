@@ -23,6 +23,7 @@ export interface LedgerDiagnostic {
 
 export interface LedgerSource {
   totals(): LedgerTotals;
+  expectedTotals?(): LedgerTotals;
   readonly lastModule?: string;
 }
 

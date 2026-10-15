@@ -50,3 +50,7 @@ date, what was decided, and why.
   give the M1 physics modules one consistent source; the ledger contract
   begins with water totals, with carbon and nutrient totals reserved for
   later milestones.
+- **2026-10-15 — Heat and light update in ten-tick batches.** Each tick is one
+  jar-minute, and running the full-grid heat solver every tick exceeded the
+  30-day preview budget. Batch transfer scales to elapsed jar time, preserving
+  per-minute energy input while making the lamp-on preview tractable.
