@@ -1,0 +1,27 @@
+{
+  "name": "terrarium",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "jar": "tsx tools/not-yet.ts jar",
+    "survive": "tsx tools/not-yet.ts survive",
+    "parity": "tsx tools/not-yet.ts parity",
+    "shots": "tsx tools/not-yet.ts shots",
+    "bench": "tsx tools/not-yet.ts bench"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.69",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.11"
+  }
+}
