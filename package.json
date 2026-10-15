@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "jar": "tsx tools/not-yet.ts jar",
+    "jar": "tsx tools/jar.ts",
     "survive": "tsx tools/not-yet.ts survive",
     "parity": "tsx tools/not-yet.ts parity",
     "shots": "tsx tools/not-yet.ts shots",
