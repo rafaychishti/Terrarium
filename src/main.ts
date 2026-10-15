@@ -1,4 +1,4 @@
-import { drawPaper } from "./render/paper";
+import { drawPaper, type PaperDebugView } from "./render/paper";
 import { interpolateState } from "./render/interpolate";
 import { elapsedTickInterval } from "./render/tick-interval";
 import { createStateLayout, type StateLayout, type StateView } from "./shared/layout";
@@ -22,6 +22,8 @@ if (!context) throw new Error("Canvas 2D is unavailable");
 const renderContext = context;
 
 const status = document.querySelector<HTMLElement>("#status");
+const debugControl = document.querySelector<HTMLLabelElement>("#debug-control");
+const debugSelect = document.querySelector<HTMLSelectElement>("#debug-view");
 let state: StateView | undefined;
 let previousState: StateView | undefined;
 let currentState: StateView | undefined;
@@ -31,6 +33,26 @@ let unboundedTicks = false;
 let layout: StateLayout | undefined;
 let sharedStorage: SharedArrayBuffer | undefined;
 let sharedViews: readonly [StateView, StateView] | undefined;
+let debugView: PaperDebugView | undefined;
+
+const isDevelopment = Boolean(
+  (import.meta as ImportMeta & { readonly env?: { readonly DEV: boolean } }).env?.DEV,
+);
+if (isDevelopment && debugControl && debugSelect) {
+  debugControl.hidden = false;
+  debugSelect.addEventListener("change", () => {
+    const selected = debugSelect.value;
+    debugView = selected === "moisture" || selected === "temperature" || selected === "light"
+      ? selected
+      : undefined;
+    canvas.setAttribute(
+      "aria-label",
+      debugView
+        ? `Terrarium development view: ${debugView}`
+        : "A living terrarium in a glass case",
+    );
+  });
+}
 
 function createState(cells: number): StateView {
   return {
@@ -187,7 +209,11 @@ function frame(timestamp: number): void {
       : Math.min(1, Math.max(0, (timestamp - lastTickAt) / lastTickIntervalMs));
     interpolateState(previousState, currentState, alpha, state);
   }
-  drawPaper(renderContext, state, layout, { width: canvas.width, height: canvas.height });
+  drawPaper(renderContext, state, layout, {
+    width: canvas.width,
+    height: canvas.height,
+    debugView,
+  });
   requestAnimationFrame(frame);
 }
 
