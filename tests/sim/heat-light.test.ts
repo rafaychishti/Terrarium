@@ -136,4 +136,27 @@ describe("lamp light and heat", () => {
     expect(first.read().temperature).toEqual(second.read().temperature);
     expect(first.read().light).toEqual(second.read().light);
   });
+
+  it("clears the light field when the lamp is switched off", () => {
+    const backend = new CpuBackend(3, { layout: createStateLayout(16, 20) });
+    backend.apply({
+      tick: 1,
+      type: "lamp",
+      xMm: 1,
+      yMm: 10,
+      intensity: 1,
+    });
+    backend.step(1);
+    expect(backend.read().light.some((value) => value > 0)).toBe(true);
+
+    backend.apply({
+      tick: 2,
+      type: "lamp",
+      xMm: 1,
+      yMm: 10,
+      intensity: 0,
+    });
+    backend.step(1);
+    expect(backend.read().light.every((value) => value === 0)).toBe(true);
+  });
 });
